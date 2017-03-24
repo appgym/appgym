@@ -13,8 +13,6 @@ import os
 from subprocess import call
 
 FNULL = open(os.devnull, 'w')
-PROJECT_ROOT = "/Users/vini/Dev/uni/dissertation/code/"
-APP_UNDER_TEST_ROOT = "/Users/vini/Dev/uni/dissertation/code/sample_app/"
 
 http_client = urllib3.PoolManager()
 
@@ -30,12 +28,13 @@ class Action:
 
 class AndroidEnv:
 
-    def __init__(self, app_package, screen_size, resize_scale=0.1, coverage_target=0.8):
+    def __init__(self, app_package, app_root_path, screen_size, resize_scale=0.1, coverage_target=0.8):
         self.app_package = app_package
+        self.app_root_path = app_root_path
         self.device = Device()
         self.screen_size = screen_size
-        self._exec(f"ng ng-cp {PROJECT_ROOT}lib/org.jacoco.ant-0.7.9-nodeps.jar")
-        self._exec(f"ng ng-cp {PROJECT_ROOT}")
+        self._exec(f"ng ng-cp ./appgym/lib/org.jacoco.ant-0.7.9-nodeps.jar")
+        self._exec(f"ng ng-cp ./")
         self._exec("adb forward tcp:8981 tcp:8981")
         self.resize_scale = resize_scale
         self.coverage_target = coverage_target
@@ -75,7 +74,7 @@ class AndroidEnv:
         start_time = timeit.default_timer()
         with http_client.request("GET", "http://localhost:8981", preload_content=False) as r, open("coverage/coverage.exec", "wb") as coverage_file:
             coverage_file.write(r.read())
-        generate_report_cmd = f"ng ReportGenerator {APP_UNDER_TEST_ROOT}"
+        generate_report_cmd = f"ng ReportGenerator {self.app_root_path}"
         self._exec(generate_report_cmd)
         df = pd.read_csv("coverage/report.csv")
         missed, covered = df[['LINE_MISSED', 'LINE_COVERED']].sum()

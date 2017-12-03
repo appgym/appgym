@@ -20,19 +20,21 @@ class CoverageReporter:
         self.coverage_data = coverage_data
 
     def summary(self):
-        cov = [self._file_coverage_summary(v['s']) 
+        cov = [self._file_summary(v['s']) 
                 for v in self.coverage_data.values()]
         not_covered = sum(n for n, _ in cov)
         stmts = sum(s for _, s in cov)
         return 1.0 - (not_covered / stmts)
 
-    def _file_coverage_summary(self, statement_coverage):
+    def _file_summary(self, statement_coverage):
         cnt = Counter(list(statement_coverage.values()))
         not_covered = cnt[0]
         stmts = sum(cnt.values())
         return (not_covered, stmts)
 
 class WebEnv:
+    
+    CELL_SIZE = 20
 
     def __init__(self, app_url, headless=False, content_selector=None):
         self.app_url = app_url
@@ -45,7 +47,7 @@ class WebEnv:
         self._run_cmd(self.page.goto(self.app_url))
         self.viewport = self._viewport()
         self.coverage = self._coverage()
-        return self._state()
+        return self._state(), self._actions()
 
     def step(self, action):
         mouse = self.page.mouse
@@ -55,13 +57,25 @@ class WebEnv:
         new_coverage = self._coverage()
         reward = new_coverage - old_coverage
         self.coverage = new_coverage
-        return self._state(), reward
+        return self._state(), self._actions(), reward
 
     def _state(self):
         return State(
                 image=self._screenshot(),
                 elements=self._elements()
         )
+    
+    def _actions(self):
+        w, h = self.viewport.width, self.viewport.height
+        cw = int(w / self.CELL_SIZE)
+        ch = int(h / self.CELL_SIZE)
+        return [Action(
+                    int(cx * self.CELL_SIZE - (self.CELL_SIZE / 2)), 
+                    int(cy * self.CELL_SIZE - (self.CELL_SIZE / 2)), 
+                    type='click'
+                ) 
+                for cy in range(1, ch + 1) 
+                for cx in range(1, cw + 1)]
 
     def _run_cmd(self, cmd):
         return asyncio.get_event_loop().run_until_complete(cmd)

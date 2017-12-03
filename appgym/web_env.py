@@ -12,6 +12,8 @@ State = namedtuple('State', ['image', 'elements'])
 
 Action = namedtuple('Action', ['x', 'y', 'type'])
 
+Element = namedtuple('Element', ['tag', 'selector', 'bounding_box'])
+
 class CoverageReporter:
 
     def __init__(self, coverage_data):
@@ -43,16 +45,21 @@ class WebEnv:
         self._run_cmd(self.page.goto(self.app_url))
         self.viewport = self._viewport()
         self.coverage = self._coverage()
-        return State(
-                image=self._screenshot(),
-                elements=self._elements()
-        )
-        # print(self._elements())
+        return self._state()
 
     def step(self, action):
         mouse = self.page.mouse
         v = self.viewport
         self._run_cmd(mouse.click(x=v.x + action.x, y=v.y + action.y))
+        old_coverage = self.coverage
+        reward = self._coverage() - old_coverage
+        return self._state(), reward
+
+    def _state(self):
+        return State(
+                image=self._screenshot(),
+                elements=self._elements()
+        )
 
     def _run_cmd(self, cmd):
         return asyncio.get_event_loop().run_until_complete(cmd)
@@ -88,7 +95,7 @@ class WebEnv:
 
     def _elements(self):
 
-        return self._run_cmd(self.page.evaluate('''
+        elements = self._run_cmd(self.page.evaluate('''
             () => {
                 function fullPath(el){
                     var names = [];
@@ -116,7 +123,7 @@ class WebEnv:
                 return elements.map((e) => {
                     var b = e.getBoundingClientRect()
                     return {
-                        element: e.localName,
+                        tag: e.localName,
                         selector: fullPath(e),
                         box: {
                             x: b.x,
@@ -128,3 +135,7 @@ class WebEnv:
                 })
             }
         '''))
+        return list(map(
+            lambda e: Element(e['tag'], e['selector'], Rect(**e['box'])),
+            elements
+        ))

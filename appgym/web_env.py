@@ -52,7 +52,9 @@ class WebEnv:
         v = self.viewport
         self._run_cmd(mouse.click(x=v.x + action.x, y=v.y + action.y))
         old_coverage = self.coverage
-        reward = self._coverage() - old_coverage
+        new_coverage = self._coverage()
+        reward = new_coverage - old_coverage
+        self.coverage = new_coverage
         return self._state(), reward
 
     def _state(self):
